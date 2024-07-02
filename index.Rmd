@@ -8,6 +8,7 @@ output:
     toc: true
     toc_float: true
     highlight: "haddock"
+    css: "styles.css"
 ---
 
 ```{r setup, include=FALSE}
@@ -46,7 +47,7 @@ replace_pound_zero <- function(df) {
 
 ### Totals: 2024 pre-poll week one - three
 
-All donations made to the Co-operative party were combined with the Labour party, and public funds were removed.
+All donations made to the Co-operative party were combined with the Labour party, and public funds were removed. Scroll to see full tables.
 
 ```{r processing data, include=FALSE}
 
@@ -162,7 +163,9 @@ col_names <- c("Party", rep(c("W1", "W2", "W3"), times = 5), "")
 pp_complete %>%
   kable("html", col.names = col_names, align = 'c') %>%
   add_header_above(c(" " = 1, "Individual" = 3, "Company" = 3, "Trade Union" = 3, "Unincorporated Association" = 3, "Friendly Society" = 3, "Total" = 1)) %>%
-  kable_styling(full_width = F)
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE) %>%
+  row_spec(nrow(pp_complete), background = "black", color = "white") %>%
+  column_spec(ncol(pp_complete), background = "black", color = "white")
 
 ```
 

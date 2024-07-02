@@ -1,0 +1,62 @@
+body {
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+table {
+  display: block;
+  overflow-x: auto;
+  width: 100%;
+  max-width: 100%;
+}
+
+table th, table td {
+  white-space: nowrap;
+}
+
+/* Add padding to the edges of the document */
+body {
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+/* Increase the size of paragraph text */
+p {
+  font-size: 18px;
+  line-height: 1.6;
+}
+
+/* Center the top header and use sans-serif font */
+h1.title {
+  font-family: Arial, sans-serif;
+  text-align: center;
+}
+
+/* Optionally, you can also adjust the header styles */
+h2, h3, h4, h5, h6 {
+  font-size: 22px;
+  margin-top: 20px;
+  margin-bottom: 10px;
+  font-family: Arial, sans-serif;
+}
+
+/* Style the table headers */
+table th {
+  background-color: #f2f2f2;
+  font-weight: bold;
+  padding: 10px;
+  text-align: center;
+}
+
+/* Style the table data cells */
+table td {
+  padding: 10px;
+  text-align: center;
+}
+
+/* Add some spacing between the table and the surrounding content */
+table {
+  margin: 20px 0;
+  width: 100%;
+  border-collapse: collapse;
+}
