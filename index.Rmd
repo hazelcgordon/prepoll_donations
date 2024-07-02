@@ -1,0 +1,599 @@
+---
+title: "Pre-poll Donations Breakdown"
+author: "Electoral Reform Society"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    theme: "flatly"
+    toc: true
+    toc_float: true
+    highlight: "haddock"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This page summarises the donations reported to the Electoral Commission by central party units during the pre-poll period leading up to the 2024 GE. These are also compared to donations made in 2019 by the same period. Currently, only week 1, 2 and 3 have been released for the 2024 GE. This page will be updated as more data is released.
+
+```{r include=FALSE}
+
+library(tidyverse)
+library(knitr)
+library(kableExtra)
+library(plotly)
+library(scales)
+
+```
+
+```{r functions, include=FALSE}
+
+# remove blank spaces between £ sign and numbers for better table formatting
+
+remove_spaces <- function(df) {
+  df %>%
+    mutate(across(everything(), ~ gsub("£\\s+", "£", .)))
+}
+
+# change 0's to blank cells
+
+replace_pound_zero <- function(df) {
+  df %>%
+    mutate(across(everything(), ~replace(., . == "£0", "")))
+}
+
+```
+
+### Totals: 2024 pre-poll week one - three
+
+All donations made to the Co-operative party were combined with the Labour party, and public funds were removed.
+
+```{r processing data, include=FALSE}
+
+pp2024 <- read.csv("data/prepoll1_2024.csv")
+pp2024_2 <- read.csv("data/prepoll2_2024.csv")
+pp2024_3 <- read.csv("data/prepoll3_2024.csv")
+
+#combine
+
+pp2024 <- rbind(pp2024, pp2024_2, pp2024_3)
+
+#removing public fund money
+
+pp2024 <- pp2024 %>%
+  filter(!DonorStatus == "Public Fund")
+
+#combining the Labour and Cooperative party
+
+pp2024 <- pp2024 %>%
+  mutate(RegulatedEntityName = ifelse(
+    RegulatedEntityName =="Co-operative Party", "Labour Party", RegulatedEntityName
+  ))
+
+# Remove £ sign and convert to numeric
+pp2024$Value <- as.numeric(gsub("[£,\"]", "", pp2024$Value))
+
+#keep only relevant columns
+
+pp2024 <- pp2024 %>%
+  select(RegulatedEntityName, ReportingPeriodName, ReceivedDate, Value, DonorStatus, DonorName)
+
+# changing names of parties
+
+pp2024$RegulatedEntityName <- gsub("Conservative and Unionist Party", "Conservative Party", pp2024$RegulatedEntityName)
+pp2024$RegulatedEntityName <- gsub("Scottish National Party \\(SNP\\)", "SNP", pp2024$RegulatedEntityName)
+
+#creating factors
+
+pp2024$RegulatedEntityName <- factor(pp2024$RegulatedEntityName, levels = c("Conservative Party", "Labour Party", "Liberal Democrats", "Reform UK", "SNP", "Green Party", "Climate Party", "Workers Party of Britain", "Social Democratic Party"))
+ 
+pp2024$DonorStatus <- factor(pp2024$DonorStatus, levels = c("Individual", "Company", "Trade Union", "Unincorporated Association", "Friendly Society"))
+
+pp2024$ReportingPeriodName <- factor(pp2024$ReportingPeriodName, levels = c("Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024", "Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024", "Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024"))
+
+```
+
+```{r include=FALSE}
+
+# Define all possible levels for DonorStatus and ReportingPeriodName
+donor_statuses <- c('Individual', 'Company', 'Trade Union', 'Unincorporated Association', 'Friendly Society')
+reporting_periods <- c('Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024', 'Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024', 'Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024')
+
+# Create a complete grid of all combinations
+all_combinations <- expand.grid(
+  RegulatedEntityName = unique(pp2024$RegulatedEntityName),
+  ReportingPeriodName = reporting_periods,
+  DonorStatus = donor_statuses,
+  stringsAsFactors = FALSE
+)
+
+# Merge with the original data to ensure all combinations are present
+pp2024_complete <- all_combinations %>%
+  left_join(pp2024, by = c("RegulatedEntityName", "ReportingPeriodName", "DonorStatus")) %>%
+  mutate(Value = ifelse(is.na(Value), 0, Value))
+
+# creating a table split by week and sum received by each party
+
+pp_complete <- pp2024_complete %>%
+  group_by(RegulatedEntityName, ReportingPeriodName, DonorStatus) %>%
+  summarise(Total = sum(Value), .groups = 'drop') %>%
+  unite("DonorStatus_ReportingPeriodName", DonorStatus, ReportingPeriodName) %>%
+  pivot_wider(names_from = DonorStatus_ReportingPeriodName, values_from = Total, values_fill = list(Total = 0))
+
+# redo column order
+
+pp_complete <- pp_complete %>%
+  select(RegulatedEntityName, `Individual_Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`, `Individual_Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`, `Individual_Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`, `Company_Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`, `Company_Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`, `Company_Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`, `Trade Union_Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`, `Trade Union_Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`, `Trade Union_Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`, `Unincorporated Association_Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`, `Unincorporated Association_Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`, `Unincorporated Association_Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`, `Friendly Society_Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`, `Friendly Society_Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`, `Friendly Society_Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`)
+
+```
+
+```{r echo=FALSE}
+
+# Format numbers as whole numbers with £ sign and remove decimal places
+pp_complete <- pp_complete %>%
+  mutate(across(-RegulatedEntityName, ~paste0("£", format(round(., 0), big.mark = ",", scientific = FALSE))))
+
+# Compute row totals
+pp_complete <- pp_complete %>%
+  mutate(Total = rowSums(across(where(is.character), ~ as.numeric(gsub("[£,]", "", .))), na.rm = TRUE)) %>%
+  mutate(Total = sprintf("£%s", format(Total, big.mark = ",", scientific = FALSE)))
+
+# Compute column totals
+column_totals <- pp_complete %>%
+  summarise(across(where(is.character), ~ sum(as.numeric(gsub("[£,]", "", .)), na.rm = TRUE))) %>%
+  mutate(RegulatedEntityName = "Total") %>%
+  mutate(across(where(is.numeric), ~ sprintf("£%s", format(.x, big.mark = ",", scientific = FALSE))))
+
+# Bind column totals to the original table
+pp_complete <- bind_rows(pp_complete, column_totals)
+
+# Convert the "Total" column to character to match other columns
+pp_complete <- pp_complete %>%
+  mutate(across(where(is.numeric), as.character))
+
+# Remove blank spaces in column names
+pp_complete <- remove_spaces(pp_complete)
+pp_complete <- replace_pound_zero(pp_complete)
+
+# Ensure the number of column names matches the actual number of columns
+col_names <- c("Party", rep(c("W1", "W2", "W3"), times = 5), "")
+
+# Summary table
+pp_complete %>%
+  kable("html", col.names = col_names, align = 'c') %>%
+  add_header_above(c(" " = 1, "Individual" = 3, "Company" = 3, "Trade Union" = 3, "Unincorporated Association" = 3, "Friendly Society" = 3, "Total" = 1)) %>%
+  kable_styling(full_width = F)
+
+```
+
+#### 2024 totals: combined
+
+```{r include=FALSE}
+
+#breaking down by party and donor status
+
+# Create a complete data frame with all combinations of Party Name and Donor Status
+
+total_prepoll <- expand.grid(RegulatedEntityName = 
+                            levels(pp2024$RegulatedEntityName), 
+                         DonorStatus = 
+                           unique(pp2024$DonorStatus)
+                         )
+
+# merge the values with each combo
+
+prepoll_table <- total_prepoll %>%
+  left_join(pp2024 %>%
+              group_by(RegulatedEntityName, DonorStatus) %>%
+            summarise(TotalValue = sum(Value, na.rm = TRUE), 
+                      .groups = 'drop'),
+            by = c("RegulatedEntityName", "DonorStatus"))
+
+prepoll_table$TotalValue[is.na(prepoll_table$TotalValue)] <- 0
+
+#Convert value to money format
+
+prepoll_table$TotalValue <- round(prepoll_table$TotalValue)
+prepoll_table$TotalValue <- sprintf("£%s", format(prepoll_table$TotalValue, big.mark = ",", scientific = FALSE))
+
+#convert to a wide format
+
+prepoll_table <- prepoll_table %>%
+  pivot_wider(names_from = DonorStatus,
+              values_from = TotalValue)
+
+```
+
+```{r echo=FALSE}
+
+# Compute row totals
+prepoll_table <- prepoll_table %>%
+  mutate(Total = rowSums(across(where(is.character), ~ as.numeric(gsub("[£,]", "", .))), na.rm = TRUE)) %>%
+  mutate(Total = sprintf("£%s", format(Total, big.mark = ",", scientific = FALSE)))
+
+# Compute column totals
+column_totals <- prepoll_table %>%
+  summarise(across(where(is.character), ~ sum(as.numeric(gsub("[£,]", "", .)), na.rm = TRUE))) %>%
+  mutate(RegulatedEntityName = "Total") %>%
+  mutate(across(where(is.numeric), ~ sprintf("£%s", format(.x, big.mark = ",", scientific = FALSE))))
+
+# Bind column totals to the original table
+prepoll_table <- bind_rows(prepoll_table, column_totals)
+
+# Convert the "Total" column to character to match other columns
+prepoll_table <- prepoll_table %>%
+  mutate(across(where(is.numeric), as.character))
+
+# Replace 'unincorporated association' with 'unincorporated<br>association' in the column names
+names(prepoll_table) <- gsub("Unincorporated Association", "Unincorporated<br>Association", names(prepoll_table))
+
+# remove white space and replace £0
+
+prepoll_table <- remove_spaces(prepoll_table)
+prepoll_table <- replace_pound_zero(prepoll_table)
+
+# Remove the first column title
+names(prepoll_table)[1] <- ""
+
+# Use kable to create a nicely formatted table
+kable(prepoll_table, format = "html", escape = FALSE, table.attr = "style='width:100%;'", align = c("l", rep("c", ncol(prepoll_table) - 1))) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE) %>%
+  column_spec(1, bold = TRUE) %>%
+  row_spec(nrow(prepoll_table), bold = TRUE, color = "white", background = "black") %>%
+  add_header_above(c(" " = 1, "Donor Status" = ncol(prepoll_table) - 1), bold = TRUE) 
+
+```
+
+### Comparisons: 2019 and 2024 GE 
+
+The table below summarises the total amounts received by each party, split by pre-poll donation week. The 2019 comparisons are limited to week one to three to be directly comparable.
+
+#### Week one to three
+
+The table below summarises totals for week one to three, split by 2019 and 2024. Interestingly, Labour received a higher total donation amount in week 2 of the 2019 campaign, however when looking at donor type, it can be seem this was massively boosted by Trade Union donations - individual and company donations remained low for Labour during week 2 of the 2019 campaign.
+
+```{r include=FALSE}
+
+pp2019 <- read.csv("data/alldonations_2019.csv")
+pp2024 <- read.csv("data/prepoll1_2024.csv")
+pp2024_2 <- read.csv("data/prepoll2_2024.csv")
+pp2024_3 <- read.csv("data/prepoll3_2024.csv")
+
+# filtering 2019 pre-poll week 1, 2 and 3
+
+pp2019 <- pp2019 %>%
+  filter(ReportingPeriodName == "Pre-Poll 1 - Party(06/11/19 - 12/11/19) UKPGE 2019"|
+           ReportingPeriodName == "Pre-Poll 2 - Party(13/11/19 - 19/11/19) UKPGE 2019"|
+           ReportingPeriodName == "Pre-Poll 3 - Party(20/11/19 - 26/11/19) UKPGE 2019")
+
+#bind the tables together for comparisons
+
+pptotal <- rbind(pp2019, pp2024, pp2024_2, pp2024_3)
+
+#combining the Labour and Cooperative party
+
+pptotal <- pptotal %>%
+  mutate(RegulatedEntityName = ifelse(
+    RegulatedEntityName =="Co-operative Party", "Labour Party", RegulatedEntityName
+  ))
+
+# removing public funds
+
+pptotal <- pptotal %>%
+  filter(!DonorStatus == "Public Fund")
+
+#keep only relevant columns
+
+pptotal <- pptotal %>%
+  select(RegulatedEntityName, ReportingPeriodName, ReceivedDate, Value, DonorStatus, DonorName)
+
+# Remove £ sign and convert to numeric 
+pptotal$Value <- as.numeric(gsub("[£,\"]", "", pptotal$Value))
+
+# converting names
+
+pptotal$RegulatedEntityName <- gsub("Conservative and Unionist Party", "Conservative Party", pptotal$RegulatedEntityName)
+pptotal$RegulatedEntityName <- gsub("Scottish National Party \\(SNP\\)", "SNP", pptotal$RegulatedEntityName)
+pptotal$RegulatedEntityName <- gsub("Alliance - Alliance Party of Northern Ireland", "Alliance", pptotal$RegulatedEntityName)
+pptotal$RegulatedEntityName <- gsub("Plaid Cymru - The Party of Wales", "Plaid Cymru", pptotal$RegulatedEntityName)
+
+```
+
+```{r include=FALSE}
+
+# compare total donated to each party 
+
+#creating factors
+
+pptotal$RegulatedEntityName <- factor(pptotal$RegulatedEntityName, levels = c("Conservative Party", "Labour Party", "Liberal Democrats", "Reform UK", "SNP", "Green Party", "Plaid Cymru", "Climate Party", "Social Democratic Party", "Workers Party of Britain", "Alliance"))
+
+pptotal$DonorStatus <- factor(pptotal$DonorStatus, levels = c("Individual", "Company", "Trade Union", "Unincorporated Association", "Friendly Society", "Limited Liability Partnership"))
+
+pptotal$ReportingPeriodName <- factor(pptotal$ReportingPeriodName, levels = c("Pre-Poll 1 - Party(06/11/19 - 12/11/19) UKPGE 2019", "Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024", "Pre-Poll 2 - Party(13/11/19 - 19/11/19) UKPGE 2019", "Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024", "Pre-Poll 3 - Party(20/11/19 - 26/11/19) UKPGE 2019", "Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024"))
+
+# Create a complete data frame with all combinations of Party Name and pre-poll period
+
+pp_comparison <- expand.grid(RegulatedEntityName = 
+                            levels(pptotal$RegulatedEntityName), 
+                         ReportingPeriodName = 
+                           unique(pptotal$ReportingPeriodName)
+                         )
+
+# merge the values with each combo
+
+prepoll_comparison <- pp_comparison %>%
+  left_join(pptotal %>%
+              group_by(RegulatedEntityName, ReportingPeriodName) %>%
+            summarise(TotalValue = sum(Value, na.rm = TRUE), 
+                      .groups = 'drop'),
+            by = c("RegulatedEntityName", "ReportingPeriodName"))
+
+prepoll_comparison$TotalValue[is.na(prepoll_comparison$TotalValue)] <- 0
+
+#Convert value to money format
+
+prepoll_comparison$TotalValue <- round(prepoll_comparison$TotalValue)
+prepoll_comparison$TotalValue <- sprintf("£%s", format(prepoll_comparison$TotalValue, big.mark = ",", scientific = FALSE))
+
+#convert to a wide format
+
+prepoll_comparison <- prepoll_comparison %>%
+  pivot_wider(names_from = ReportingPeriodName,
+              values_from = TotalValue)
+
+#rename column names
+
+prepoll_comparison <- prepoll_comparison %>%
+  rename(`Week 1 2019` = `Pre-Poll 1 - Party(06/11/19 - 12/11/19) UKPGE 2019`,
+         `Week 1 2024` = `Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024`,
+         `Week 2 2019` = `Pre-Poll 2 - Party(13/11/19 - 19/11/19) UKPGE 2019`,
+         `Week 2 2024` = `Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024`,
+         `Week 3 2019` = `Pre-Poll 3 - Party(20/11/19 - 26/11/19) UKPGE 2019`,
+         `Week 3 2024`= `Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024`)
+
+# reorder columns
+
+prepoll_comparison <- prepoll_comparison %>%
+  select(RegulatedEntityName, `Week 1 2019`, `Week 1 2024`, `Week 2 2019`, `Week 2 2024`, `Week 3 2019`, `Week 3 2024`)
+
+# Calculate column totals
+column_totals <- prepoll_comparison %>%
+  summarise(across(where(is.character), ~ sprintf("£%s", format(sum(as.numeric(gsub("[£,]", "", .))), big.mark = ",", scientific = FALSE)))) %>%
+  mutate(RegulatedEntityName = "Total")
+
+# Bind the totals row to the original table
+prepoll_comparison <- bind_rows(prepoll_comparison, column_totals)
+
+# remove spaces and replace £0 with blanks
+
+prepoll_comparison <- remove_spaces(prepoll_comparison)
+prepoll_comparison <- replace_pound_zero(prepoll_comparison)
+
+# format table
+
+totals_comparison <- kable(prepoll_comparison, col.names = c("", "2019", "2024", "2019", "2024", "2019", "2024"), align = 'c') %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE) %>%
+  add_header_above(c(" " = 1, "Week One" = 2, "Week Two" = 2, "Week 3" = 2)) %>%
+  row_spec(nrow(prepoll_comparison), bold = TRUE, color = "white", background = "black") 
+
+```
+
+```{r, results='asis', echo=FALSE}
+
+totals_comparison
+
+```
+
+The graph below shows the same trends for the main parties that received donations: Conservatives, Labour, Lib Dems, Reform, Greens, Plaid and SNP. 
+
+```{r echo=FALSE, fig.align='center'}
+
+# graph to show the same thing with more clarity
+
+pptotal <- pptotal %>%
+  mutate(PrePollWeek = case_when(
+    ReportingPeriodName == "Pre-Poll 1 - Party(06/11/19 - 12/11/19) UKPGE 2019" ~ "week one",
+    ReportingPeriodName == "Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024" ~ "week one",
+    ReportingPeriodName == "Pre-Poll 2 - Party(13/11/19 - 19/11/19) UKPGE 2019" ~ "week two",
+    ReportingPeriodName == "Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024" ~ "week two",
+    ReportingPeriodName == "Pre-Poll 3 - Party(20/11/19 - 26/11/19) UKPGE 2019" ~ "week three",
+    ReportingPeriodName == "Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024" ~ "week three",
+    TRUE ~ ReportingPeriodName
+  ))
+
+# merge the reporting period names into 2019 and 2024 totals
+
+pptotal <- pptotal %>%
+  mutate(Year = case_when(
+    ReportingPeriodName == "Pre-Poll 1 - Party(06/11/19 - 12/11/19) UKPGE 2019" ~ "2019",
+    ReportingPeriodName == "Pre-Poll 2 - Party(13/11/19 - 19/11/19) UKPGE 2019" ~ "2019",
+    ReportingPeriodName == "Pre-Poll 1 - Party(30/05/24 - 05/06/24) UKPGE 2024" ~ "2024",
+    ReportingPeriodName == "Pre-Poll 2 - Party(06/06/24 - 12/06/24) UKPGE 2024" ~ "2024",
+    ReportingPeriodName == "Pre-Poll 3 - Party(20/11/19 - 26/11/19) UKPGE 2019" ~ "2019",
+    ReportingPeriodName == "Pre-Poll 3 - Party(13/06/24 - 19/06/24) UKPGE 2024" ~ "2024",
+    TRUE ~ ReportingPeriodName
+  ))
+
+# setting factor levels for week
+
+pptotal$PrePollWeek <- factor(pptotal$PrePollWeek, level = c("week one", "week two", "week three"))
+
+# filter out for main parties
+
+ppmain <- pptotal %>%
+  filter(RegulatedEntityName == "Conservative Party"|
+           RegulatedEntityName == "Labour Party"|
+           RegulatedEntityName == "Liberal Democrats"|
+           RegulatedEntityName == "Reform UK"|
+           RegulatedEntityName == "Green Party"|
+           RegulatedEntityName == "Plaid Cymru"|
+           RegulatedEntityName == "SNP")
+
+# creating a line graph that has week along the x-axis but splits into facets by year
+
+# Aggregate the data to sum donations by party, period, and donor status
+line_party <- ppmain %>%
+  group_by(RegulatedEntityName, PrePollWeek, Year) %>%
+  summarise(TotalValue = sum(Value), .groups = 'drop')
+
+# Hover text customised
+
+line_party <- line_party %>%
+  mutate(HoverText = paste0("Total Value: £", format(round(TotalValue, 0), big.mark = ",", scientific = FALSE), "<br>",
+                            "Party: ", RegulatedEntityName, "<br>",
+                            "Pre-poll period: ", PrePollWeek))
+
+# customised colours
+
+party_colors <- c(
+  "Conservative Party" = "#000080",  # Navy Blue
+  "Labour Party" = "#FF0000",        # Red
+  "Liberal Democrats" = "#FFD700",   # Dark Yellow
+  "Reform UK" = "#ADD8E6",           # Light Blue
+  "Green Party" = "#006400",         # Dark Green
+  "Plaid Cymru" = "#90EE90",         # Light Green
+  "SNP" = "orange"                  # Orange
+)
+
+# Create the line chart
+
+p <- ggplot(line_party, aes(x = PrePollWeek, y = TotalValue, color = RegulatedEntityName, text = HoverText, group = RegulatedEntityName)) +
+  geom_line(linewidth = 0.5) +
+  geom_point(size = 2) +
+  scale_y_continuous(labels = dollar_format(prefix = "£", big.mark = ",")) +
+  labs(x = "", y = "", color = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_color_manual(values = party_colors) +
+  facet_wrap(~ Year, scales = "free_x", nrow = 1) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+# Convert to interactive plot with plotly
+maintrends_interactive <- ggplotly(p, tooltip = "text")
+
+# show
+
+maintrends_interactive
+
+```
+
+#### Split by donor type
+
+The table below summarises the total amounts recieved in week 1, 2 and 3 of the campaigns, split by donor type (scroll left to see all columns). 
+
+```{r echo=FALSE, warning=FALSE}
+
+# create summary table
+
+year_summary <- pptotal %>%
+  select(RegulatedEntityName, Year, DonorStatus, Value) %>%
+  group_by(RegulatedEntityName, DonorStatus, Year) %>%
+  summarise(TotalValue = sum(Value), .groups = 'drop') %>%
+  complete(RegulatedEntityName, DonorStatus, Year, fill = list(TotalValue = 0))
+
+# Convert value to money format
+year_summary$TotalValue <- round(year_summary$TotalValue)
+year_summary$TotalValue <- sprintf("£%s", format(year_summary$TotalValue, big.mark = ",", scientific = FALSE))
+
+# create wide format 
+
+year_summary_wide <- year_summary %>%
+  pivot_wider(
+    names_from = c(DonorStatus, Year),
+    values_from = TotalValue,
+    names_sep = "_"
+  )
+
+# Calculate column totals
+
+column_total <- year_summary_wide %>%
+  summarise(across(everything(), ~ sum(as.numeric(gsub("[£,]", "", .)),
+                                       na.rm = TRUE))) %>%
+  mutate(RegulatedEntityName = "Total") %>%
+  mutate(across(-RegulatedEntityName, ~ sprintf("£%s", format(.x, big.mark = ",", scientific = FALSE))))
+
+# remove blank spaces function
+
+year_summary_wide <- remove_spaces(year_summary_wide)
+
+# use replace_pound_zero function to make a neater table
+
+year_summary_wide <- replace_pound_zero(year_summary_wide)
+
+# bind the new row with original dataframe
+
+year_summary_wide <- rbind(year_summary_wide, column_total)
+
+```
+
+```{r echo=FALSE}
+
+# Replace 'unincorporated association' with 'unincorporated<br>association' in the column names
+names(year_summary_wide) <- gsub("Unincorporated Association", "Unincorporated<br>Association", names(year_summary_wide))
+
+# Remove the first column title
+names(year_summary_wide)[1] <- ""
+
+#create kable table
+
+kable(year_summary_wide, col.names = c("", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024")) %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE) %>%
+  add_header_above(c(" " = 1, "Individual" = 2, "Company" = 2, "Trade Union" = 2, "Unincorporated Association" = 2, "Friendly Society" = 2, "Limited Liability Partnership" = 2)) %>%
+  row_spec(nrow(year_summary_wide), bold = TRUE, color = "white", background = "black") %>%
+  row_spec(0, align = "center")
+
+
+```
+
+### Biggest party comparisons
+
+Below sums up the totals for week one to three received in 2019 and 2024 by the key parties. This is to get a better sense of total amounts compared to 2019 - it is interesting that there was still more money going into the Conservatives relative to how much Labour are getting now.
+
+This may be related to the increase in reporting threshold; in 2019 any donation over £7,500 needed to be reported, the Elections Act of 2022 raised this threshold to £11,180. Rather than less money being accepted, it may be less is required to be reported. This is speculation.
+
+```{r echo=FALSE, fig.align='center'}
+
+pptotal <- pptotal %>%
+  filter(RegulatedEntityName == "Conservative Party"|
+         RegulatedEntityName == "Labour Party"|
+           RegulatedEntityName == "Liberal Democrats"|
+           RegulatedEntityName == "Reform UK")
+
+# this leave 350 donations
+
+# Aggregate the data to sum donations by party, period, and donor status
+pptotal_agg <- pptotal %>%
+  group_by(RegulatedEntityName, Year, DonorStatus) %>%
+  summarise(TotalValue = sum(Value), .groups = 'drop')
+
+# Hover text customised
+
+pptotal_agg <- pptotal_agg %>%
+  mutate(HoverText = paste0("Total Value: £", format(round(TotalValue, 0), big.mark = ",", scientific = FALSE), "<br>",
+                            "Donor Status: ", DonorStatus, "<br>",
+                            "Party: ", RegulatedEntityName, "<br>",
+                            "Year: ", Year))
+
+# Create the bar chart
+p <- ggplot(pptotal_agg, aes(x = RegulatedEntityName, y = TotalValue, fill = DonorStatus, text = HoverText)) +
+  geom_bar(stat = "identity") +
+  labs(x = "", y = "", fill = "") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        legend.position = "bottom",
+        legend.justification = "center") +
+  scale_y_continuous(labels = scales::label_dollar(prefix = "£", big.mark = ",")) +
+  scale_fill_brewer(palette = "Set3") +
+  facet_wrap(~ Year, scales = "free_x", nrow = 1) +
+  theme(strip.background = element_blank(),
+        strip.text = element_text(face = "bold"))
+
+# Convert to interactive plot with plotly
+totals_interactive <- ggplotly(p, tooltip = "text")
+
+# show
+
+totals_interactive
+
+```
