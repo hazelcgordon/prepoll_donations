@@ -540,7 +540,7 @@ names(year_summary_wide)[1] <- ""
 
 #create kable table
 
-kable(year_summary_wide, col.names = c("", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024")) %>%
+kable(year_summary_wide, col.names = c("", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024", "2019", "2024"), align = 'c') %>%
   kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"), full_width = FALSE) %>%
   add_header_above(c(" " = 1, "Individual" = 2, "Company" = 2, "Trade Union" = 2, "Unincorporated Association" = 2, "Friendly Society" = 2, "Limited Liability Partnership" = 2)) %>%
   row_spec(nrow(year_summary_wide), bold = TRUE, color = "white", background = "black") %>%
