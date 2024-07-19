@@ -45,7 +45,7 @@ replace_pound_zero <- function(df) {
 
 ```
 
-### Totals: 2024 pre-poll week one - three
+### Totals: 2024 pre-poll 
 
 All donations made to the Co-operative party were combined with the Labour party, and public funds were removed. Scroll to see full tables.
 
